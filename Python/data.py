@@ -41,28 +41,29 @@ seedResults.rename(columns = {'section': 'LSection', 'numSeed': 'LNumSeed'}, inp
 seeds.rename(columns = {'LTeamID': 'TeamID'}, inplace = True) #rename the team id column in original seeds data frame to return to original
 
 #### create a data frame with regular season W/L and PF/PA ####
-years = regSeasResults.Season.unique()
-masterSeasonTotals = pd.DataFrame(columns = ['Season', 'TeamID', 'W', 'L', 'PF', 'PA'])
+years = regSeasResults.Season.unique() #every unique year in the data set
+masterSeasonTotals = pd.DataFrame(columns = ['Season', 'TeamID', 'W', 'L', 'PF', 'PA']) #make an empty data frame to hold the new season data
 
-for year in years[0:2]:
-    print(year)
-    actSeason = regSeasResults[regSeasResults.Season == year]
-    actSeason.reset_index(inplace = True)
-    teams = actSeason.WTeamID.append(actSeason.LTeamID).unique()
-    nrow = len(teams)
-    actSeasonTotals = pd.DataFrame(data = np.zeros((nrow, 6)), columns = ['Season', 'TeamID', 'W', 'L', 'PF', 'PA'])
+#loop that iterates through each year in the data set and finds the W, L, PF and PA for each team in each year
+for year in years:
+    actSeason = regSeasResults[regSeasResults.Season == year] #the currently active year (a subset of original data set)
+    actSeason.reset_index(inplace = True) #reset the index of the subset (for cleaner indexing in next loop)
+    teams = actSeason.WTeamID.append(actSeason.LTeamID).unique() #get list of unique teams for active year
+    nrow = len(teams) #number of rows to be added to data frame
+    actSeasonTotals = pd.DataFrame(data = np.zeros((nrow, 6)), columns = ['Season', 'TeamID', 'W', 'L', 'PF', 'PA']) #create data frame with correct number of rows and columns for data fill
 
-    actSeasonTotals['Season'] = pd.Series(data = [year] * nrow)
-    actSeasonTotals['TeamID'] = pd.Series(data = teams)
+    actSeasonTotals['Season'] = pd.Series(data = [year] * nrow) #fill in this data frame with the current season
+    actSeasonTotals['TeamID'] = pd.Series(data = teams) #also fill in with every team that played that season
 
+    #loop that iterates through each game in the season and aggregates the info into the new data frame
     for game in range(actSeason.shape[0]):
-        WInd = actSeasonTotals.index[actSeasonTotals['TeamID'] == actSeason.loc[game, 'WTeamID']].tolist()[0]
-        LInd = actSeasonTotals.index[actSeasonTotals['TeamID'] == actSeason.loc[game, 'LTeamID']].tolist()[0]
-        actSeasonTotals.loc[WInd, 'W'] += 1
-        actSeasonTotals.loc[LInd, 'L'] += 1
-        actSeasonTotals.loc[WInd, 'PF'] += actSeason.loc[game, 'WScore']
-        actSeasonTotals.loc[WInd, 'PA'] += actSeason.loc[game, 'LScore']
-        actSeasonTotals.loc[LInd, 'PF'] += actSeason.loc[game, 'LScore']
+        WInd = actSeasonTotals.index[actSeasonTotals['TeamID'] == actSeason.loc[game, 'WTeamID']].tolist()[0] #find the row index of the winning team in the active game
+        LInd = actSeasonTotals.index[actSeasonTotals['TeamID'] == actSeason.loc[game, 'LTeamID']].tolist()[0] #row index of losing team in active game
+        actSeasonTotals.loc[WInd, 'W'] += 1 #increment winning team's win total by 1
+        actSeasonTotals.loc[LInd, 'L'] += 1 #increment losing team's loss total by 1
+        actSeasonTotals.loc[WInd, 'PF'] += actSeason.loc[game, 'WScore'] #add the winning team's points scored to their season PF total
+        actSeasonTotals.loc[WInd, 'PA'] += actSeason.loc[game, 'LScore'] #add the losing team's points scored to the winning team's PA total
+        actSeasonTotals.loc[LInd, 'PF'] += actSeason.loc[game, 'LScore'] #do the same for the losing team
         actSeasonTotals.loc[LInd, 'PA'] += actSeason.loc[game, 'WScore']
 
-    masterSeasonTotals = pd.concat([masterSeasonTotals, actSeasonTotals], axis = 0)
+    masterSeasonTotals = pd.concat([masterSeasonTotals, actSeasonTotals], axis = 0) #collect all the active seasons together in the master data frame created above
