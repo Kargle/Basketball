@@ -1,11 +1,14 @@
 #### initialize libraries ####
 import numpy as np
 import pandas as pd
+import os
+import sys
 import time
 
 #### pull in data from provided csv's as data frames ####
-seeds = pd.read_csv('../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneySeeds.csv')
-results = pd.read_csv('../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneyCompactResults.csv')
+seeds = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneySeeds.csv'))
+results = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneyCompactResults.csv'))
+regSeasResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MRegularSeasonCompactResults.csv'))
 
 #### prepare TourneySeeds data frame ####
 seeds['TeamID'] = pd.Categorical(seeds.TeamID) #switch TeamID from int -> categorical type
@@ -37,5 +40,29 @@ seedResults.rename(columns = {'section': 'LSection', 'numSeed': 'LNumSeed'}, inp
 
 seeds.rename(columns = {'LTeamID': 'TeamID'}, inplace = True) #rename the team id column in original seeds data frame to return to original
 
+#### create a data frame with regular season W/L and PF/PA ####
+years = regSeasResults.Season.unique()
+masterSeasonTotals = pd.DataFrame(columns = ['Season', 'TeamID', 'W', 'L', 'PF', 'PA'])
 
+for year in years[0:2]:
+    print(year)
+    actSeason = regSeasResults[regSeasResults.Season == year]
+    actSeason.reset_index(inplace = True)
+    teams = actSeason.WTeamID.append(actSeason.LTeamID).unique()
+    nrow = len(teams)
+    actSeasonTotals = pd.DataFrame(data = np.zeros((nrow, 6)), columns = ['Season', 'TeamID', 'W', 'L', 'PF', 'PA'])
 
+    actSeasonTotals['Season'] = pd.Series(data = [year] * nrow)
+    actSeasonTotals['TeamID'] = pd.Series(data = teams)
+
+    for game in range(actSeason.shape[0]):
+        WInd = actSeasonTotals.index[actSeasonTotals['TeamID'] == actSeason.loc[game, 'WTeamID']].tolist()[0]
+        LInd = actSeasonTotals.index[actSeasonTotals['TeamID'] == actSeason.loc[game, 'LTeamID']].tolist()[0]
+        actSeasonTotals.loc[WInd, 'W'] += 1
+        actSeasonTotals.loc[LInd, 'L'] += 1
+        actSeasonTotals.loc[WInd, 'PF'] += actSeason.loc[game, 'WScore']
+        actSeasonTotals.loc[WInd, 'PA'] += actSeason.loc[game, 'LScore']
+        actSeasonTotals.loc[LInd, 'PF'] += actSeason.loc[game, 'LScore']
+        actSeasonTotals.loc[LInd, 'PA'] += actSeason.loc[game, 'WScore']
+
+    masterSeasonTotals = pd.concat([masterSeasonTotals, actSeasonTotals], axis = 0)
