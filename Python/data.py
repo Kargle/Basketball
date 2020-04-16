@@ -7,8 +7,15 @@ import time
 
 #### pull in data from provided csv's as data frames ####
 seeds = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneySeeds.csv'))
-results = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneyCompactResults.csv'))
-regSeasResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MRegularSeasonCompactResults.csv'))
+tourneyCompactResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneyCompactResults.csv'))
+regSeasCompactResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MRegularSeasonCompactResults.csv'))
+regSeasDetailedResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MRegularSeasonDetailedResults.csv'))
+
+#### other variables that will be needed ####
+columnsCompact = ['Season', 'TeamID', 'G', 'W', 'L', 'Pts', 'PA']
+columnsDetailed = ['Season', 'TeamID', 'G', 'W', 'L', 'Pts', 'PA', 'FGM', 'FGA', 'FGM3', 'FGA3', 'FTM', 'FTA', 'OR', 'DR', 'Ast', 'TO', 'Stl', 'Blk', 'PF']
+
+#### data functions ####
 
 #function that creates a data frame containing the game-level results of each tournament since 1985, including the seed and bracket region of each participant
 #inputs:
@@ -51,21 +58,23 @@ def createSeedResults1985DF(seeds, results):
 
 #function that creates a data frame containing the wins, losses, points scored and points allowed of every NCAA div 1 team since 1985
 #input:
-#   regSeasResults: a data frame pulled directly from MRegularSeasonCompactResults.csv
+#   regSeasonResults: a data frame pulled directly from MRegularSeasonCompactResults.csv or MRegularSeasonDetailedResults.csv
+#   columns: a list with the names of the columns to be included (generally one of two configurations based on compact/detailed)
 #output:
-#   masterSeasonTotals: a data frame containing team id, season, W, L, PF, PA for every team
-def createRegularSeasonStats1985DF(regSeasResults):
-    years = regSeasResults.Season.unique() #every unique year in the data set
-    masterSeasonTotals = pd.DataFrame(columns = ['Season', 'TeamID', 'W', 'L', 'PF', 'PA']) #make an empty data frame to hold the new season data
+#   masterSeasonTotals: a data frame containing team id, season, G, W, L, PF, PA (and extra items if detailed) for every team
+def createRegSeasonStatsDF(regSeasonResults, columns):
+    years = regSeasonResults.Season.unique() #every unique year in the data set
+    masterSeasonTotals = pd.DataFrame(columns = columns) #make an empty data frame to hold the new season data
+    ncol = len(columns) #size of output data frame will depend on columns given
 
-    #loop that iterates through each year in the data set and finds the W, L, PF and PA for each team in each year
+    #loop that iterates through each year in the data set and finds the W, L, PF and PA, and any additional columns, for each team in each year
     for year in years:
         print(year)
-        actSeason = regSeasResults[regSeasResults.Season == year] #the currently active year (a subset of original data set)
+        actSeason = regSeasonResults[regSeasonResults.Season == year] #the currently active year (a subset of original data set)
         actSeason.reset_index(inplace = True) #reset the index of the subset (for cleaner indexing in next loop)
         teams = actSeason.WTeamID.append(actSeason.LTeamID).unique() #get list of unique teams for active year
         nrow = len(teams) #number of rows to be added to data frame
-        actSeasonTotals = pd.DataFrame(data = np.zeros((nrow, 6)), columns = ['Season', 'TeamID', 'W', 'L', 'PF', 'PA']) #create data frame with correct number of rows and columns for data fill
+        actSeasonTotals = pd.DataFrame(data = np.zeros((nrow, ncol)), columns = columns) #create data frame with correct number of rows and columns for data fill
 
         actSeasonTotals['Season'] = pd.Series(data = [year] * nrow) #fill in this data frame with the current season
         actSeasonTotals['TeamID'] = pd.Series(data = teams) #also fill in with every team that played that season
@@ -76,13 +85,20 @@ def createRegularSeasonStats1985DF(regSeasResults):
             LInd = actSeasonTotals.index[actSeasonTotals['TeamID'] == actSeason.loc[game, 'LTeamID']].tolist()[0] #row index of losing team in active game
             actSeasonTotals.loc[WInd, 'W'] += 1 #increment winning team's win total by 1
             actSeasonTotals.loc[LInd, 'L'] += 1 #increment losing team's loss total by 1
-            actSeasonTotals.loc[WInd, 'PF'] += actSeason.loc[game, 'WScore'] #add the winning team's points scored to their season PF total
+            actSeasonTotals.loc[WInd, 'Pts'] += actSeason.loc[game, 'WScore'] #add the winning team's points scored to their season PF total
             actSeasonTotals.loc[WInd, 'PA'] += actSeason.loc[game, 'LScore'] #add the losing team's points scored to the winning team's PA total
-            actSeasonTotals.loc[LInd, 'PF'] += actSeason.loc[game, 'LScore'] #do the same for the losing team
+            actSeasonTotals.loc[LInd, 'Pts'] += actSeason.loc[game, 'LScore'] #do the same for the losing team
             actSeasonTotals.loc[LInd, 'PA'] += actSeason.loc[game, 'WScore']
 
+            if ncol > 7: #test to see if this is the detailed run (otherwise this code won't run)
+                for j in columns[7:]: #iterate through remaining data items
+                    actSeasonTotals.loc[WInd, j] += actSeason.loc[game, ('W' + j)] #follow the procedure from above for winner and loser
+                    actSeasonTotals.loc[LInd, j] += actSeason.loc[game, ('L' + j)]
+
         masterSeasonTotals = pd.concat([masterSeasonTotals, actSeasonTotals], axis = 0) #collect all the active seasons together in the master data frame created above
-    
+
+    masterSeasonTotals['G'] = masterSeasonTotals['W'] + masterSeasonTotals['L'] #fill in games played column with sum of win and loss columns
+
     return masterSeasonTotals
 
 #function that merges the seedResults and regSeasTotals data frames created above
