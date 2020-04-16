@@ -5,16 +5,6 @@ import os
 import sys
 import time
 
-#### pull in data from provided csv's as data frames ####
-seeds = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneySeeds.csv'))
-tourneyCompactResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneyCompactResults.csv'))
-regSeasCompactResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MRegularSeasonCompactResults.csv'))
-regSeasDetailedResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MRegularSeasonDetailedResults.csv'))
-
-#### other variables that will be needed ####
-columnsCompact = ['Season', 'TeamID', 'G', 'W', 'L', 'Pts', 'PA']
-columnsDetailed = ['Season', 'TeamID', 'G', 'W', 'L', 'Pts', 'PA', 'FGM', 'FGA', 'FGM3', 'FGA3', 'FTM', 'FTA', 'OR', 'DR', 'Ast', 'TO', 'Stl', 'Blk', 'PF']
-
 #### data functions ####
 
 #function that creates a data frame containing the game-level results of each tournament since 1985, including the seed and bracket region of each participant
@@ -113,10 +103,24 @@ def createSeedResultRegTotals1985DF(seedResults1985, regSeasTotals1985):
 
     rstFn.rename(columns = {'TeamID': 'WTeamID'}, inplace = True) #this procedure is the same as in createSeedResults1985DF function above
     outDF = pd.merge(srFn, rstFn, on = ['WTeamID', 'Season'])
-    outDF.rename(columns = {'W': 'WWins', 'L': 'WLosses', 'PF': 'WPF', 'PA': 'WPA'}, inplace = True)
+    outDF.rename(columns = {'G': 'WG','W': 'WWins', 'L': 'WLosses', 'Pts': 'WPts', 'PA': 'WPA'}, inplace = True)
 
     rstFn.rename(columns = {'WTeamID': 'LTeamID'}, inplace = True)
     outDF = pd.merge(outDF, rstFn, on = ['LTeamID', 'Season']) 
-    outDF.rename(columns = {'W': 'LWins', 'L': 'LLosses', 'PF': 'LPF', 'PA': 'LPA'}, inplace = True)
+    outDF.rename(columns = {'G': 'LG','W': 'LWins', 'L': 'LLosses', 'Pts': 'LPts', 'PA': 'LPA'}, inplace = True)
 
     return outDF
+
+#### data from provided csv's as data frames ####
+seeds = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneySeeds.csv'))
+tourneyCompactResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneyCompactResults.csv'))
+regSeasCompactResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MRegularSeasonCompactResults.csv'))
+regSeasDetailedResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MRegularSeasonDetailedResults.csv'))
+
+#### other variables that will be needed ####
+columnsCompact = ['Season', 'TeamID', 'G', 'W', 'L', 'Pts', 'PA']
+columnsDetailed = ['Season', 'TeamID', 'G', 'W', 'L', 'Pts', 'PA', 'FGM', 'FGA', 'FGM3', 'FGA3', 'FTM', 'FTA', 'OR', 'DR', 'Ast', 'TO', 'Stl', 'Blk', 'PF']
+
+#### generated data ####
+regSeasCompactTotals = pd.read_pickle(os.path.join(sys.path[0], '../GeneratedData/regSeasCompactTotals.pkl'))
+regSeasDetailedTotals = pd.read_pickle(os.path.join(sys.path[0], '../GeneratedData/regSeasDetailedTotals.pkl'))
