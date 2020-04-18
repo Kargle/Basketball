@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from data import *
 
 #### simulation ####
 
@@ -29,12 +30,13 @@ def generateMatchups(round):
     return out
 
 class tourneyGame:
-    def __init__(self, evalFn, priorGameA = None, priorGameB = None, teamA = None, teamB = None):
+    def __init__(self, evalFn, refDF, priorGameA = None, priorGameB = None, teamA = None, teamB = None):
         self.evalFn = evalFn
         self.priorGameA = priorGameA
         self.priorGameB = priorGameB
         self.teamA = teamA
         self.teamB = teamB
+        self.refDF = refDF
 
     def findWinner(self):
         if self.teamA == None:
@@ -42,28 +44,111 @@ class tourneyGame:
         if self.teamB == None:
             self.teamB = self.priorGameB.findWinner()
         
-        self.winner = self.evalFn(self.teamA, self.teamB)
+        self.winner = self.evalFn(self.teamA, self.teamB, self.refDF)
 
         return self.winner
 
+class tourneyClass:
+    def __init__(self, evalFn, refDF):
+        self.net = []
+        for _ in range(32):
+            self.net.append(tourneyGame(evalFn, refDF))
+        count = 0
+        for i in [16, 8, 4, 2, 1]:
+            for _ in range(i):
+                self.net.append(tourneyGame(evalFn, refDF, priorGameA = self.net[count], priorGameB = self.net[count + 1]))
+                count += 2
+    
+    def simulate(self):
+        self.net[-1].findWinner()
+        return [x.winner for x in self.net]
+
+def tourneySim(year, evalFn, detailed = False):
+    #note that this implementation relies on matchups and the ref dataframe being global (i.e. accesible by the function without being explicitly passed)
+    #should add in ability to manually enter team id's for a given season (what if scenarios)?
+    if detailed == True:
+        masterTemp = master2003[:]
+    elif detailed == False:
+        masterTemp = master1985[:]
+
+    masterTemp = masterTemp[masterTemp['Season'] == year]
+    masterTemp.reset_index(inplace = True)
+    
+    tourney = tourneyClass(evalFn, masterTemp)
+
+    playInGames = masterTemp[(masterTemp['WNumSeed'] != round(masterTemp['WNumSeed'])) & (masterTemp['LNumSeed'] != round(masterTemp['LNumSeed']))]
+    nonPlayInGames = masterTemp[(masterTemp['WNumSeed'] == round(masterTemp['WNumSeed'])) | (masterTemp['LNumSeed'] == round(masterTemp['LNumSeed']))]
+
+    for i in range(playInGames.shape[0]):
+        if playInGames.loc[i, 'WSection'] == 'W':
+            count = 0
+        elif playInGames.loc[i, 'WSection'] == 'X':
+            count = 8
+        elif playInGames.loc[i, 'WSection'] == 'Y':
+            count = 16
+        elif playInGames.loc[i, 'WSection'] == 'Y':
+            count = 24
+        
+        for j in range(len(matchups[0])):
+            if int(playInGames.loc[i, 'WNumSeed']) == matchups[0][j][0]:
+                tourney.net[count].priorGameA = tourneyGame(evalFn, teamA = playInGames.loc[i, 'WTeamID'], teamB = playInGames.loc[i, 'LTeamID'])
+                break
+            if int(playInGames.loc[i, 'WNumSeed']) == matchups[0][j][1]:
+                tourney.net[count].priorGameB = tourneyGame(evalFn, teamA = playInGames.loc[i, 'WTeamID'], teamB = playInGames.loc[i, 'LTeamID'])
+                break
+            count += 1
+
+    for i in range(nonPlayInGames.shape[0]):
+        if nonPlayInGames.loc[i, 'WSection'] == 'W':
+            count = 0
+        elif nonPlayInGames.loc[i, 'WSection'] == 'X':
+            count = 8
+        elif nonPlayInGames.loc[i, 'WSection'] == 'Y':
+            count = 16
+        elif nonPlayInGames.loc[i, 'WSection'] == 'Z':
+            count = 24
+        firstRoundTestVar = [int(nonPlayInGames.loc[i, 'WNumSeed']), int(nonPlayInGames.loc[i, 'LNumSeed'])]
+
+        for j in range(len(matchups[0])):
+            if matchups[0][j] == firstRoundTestVar or list(reversed(matchups[0][j])) == firstRoundTestVar:
+                winnerBetterSeedBool = nonPlayInGames.loc[i, 'WNumSeed'] < nonPlayInGames.loc[i, 'LNumSeed']
+                if winnerBetterSeedBool:
+                    tourney.net[count].teamA = nonPlayInGames.loc[i, 'WTeamID']
+                    tourney.net[count].teamB = nonPlayInGames.loc[i, 'LTeamID']
+                    break
+                else:
+                    tourney.net[count].teamB = nonPlayInGames.loc[i, 'WTeamID']
+                    tourney.net[count].teamA = nonPlayInGames.loc[i, 'LTeamID']
+                    break
+            count += 1
+
+    outList = tourney.simulate()
+    return outList
+        
 #### evaluation functions ####
 
-#function to find accuracy of picking highest seed every time
-#input: 
-#   seedResults: a data frame with merged seed info and results of tournament games from data file
-#output:
-#   accuracy: a decimal reflecting ratio of correct guesses
-def highSeedWins(seedResults):
-    nrow = seedResults.shape[0] #number of rows in the data frame
-    seedResults['WExpected'] = seedResults.WTeamID #new column to hold winner we think will win each game; initialize to the actual winner id's
+def highSeedWins(teamA, teamB, refDF):
+    teamADF = refDF[refDF['LTeamID'] == teamA]
+    if teamADF.empty:
+        teamADF = refDF[refDF['WTeamID'] == teamA]
+        teamASeed = int(teamADF.loc[teamADF.index[0], 'WNumSeed'])
+    else:
+        teamASeed = int(teamADF.loc[teamADF.index[0], 'LNumSeed'])
 
-    #loop to populate the expected winner column
-    for i in range(nrow):
-        if seedResults.loc[i, 'WNumSeed'] >= seedResults.loc[i, 'LNumSeed']: #if the winner's seed is higher than the loser's
-            seedResults.loc[i, 'WExpected'] = seedResults.loc[i, 'LTeamID'] #then replace the winner's id with the loser's id
+    teamBDF = refDF[refDF['LTeamID'] == teamB]
+    if teamBDF.empty:
+        teamBDF = refDF[refDF['WTeamID'] == teamB]
+        teamBSeed = int(teamBDF.loc[teamBDF.index[0], 'WNumSeed'])
+    else:
+        teamBSeed = int(teamBDF.loc[teamBDF.index[0], 'LNumSeed'])
 
-    seedResults['correctGuess'] = seedResults.WExpected == seedResults.WTeamID #new column that is a T/F depending on whether our guess matched the actual
-
-    accuracy = seedResults.correctGuess.sum() / nrow #accuracy is average of T/F column
-
-    return accuracy
+    if teamASeed == teamBSeed:
+        rand = np.random.random()
+        if rand < 0.5:
+            return teamA
+        else:
+            return teamB
+    elif teamASeed < teamBSeed:
+        return teamA
+    else:
+        return teamB
