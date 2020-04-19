@@ -78,15 +78,10 @@ def tourneySim(year, evalFn, refDF):
     nonPlayInGames = masterTemp[(masterTemp['WNumSeed'] == round(masterTemp['WNumSeed'])) | (masterTemp['LNumSeed'] == round(masterTemp['LNumSeed']))]
     nonPlayInGames.reset_index(inplace = True)
 
+    sectionDict = {'W': 0, 'X': 8, 'Y': 16, 'Z': 24}
+
     for i in range(playInGames.shape[0]):
-        if playInGames.loc[i, 'WSection'] == 'W':
-            count = 0
-        elif playInGames.loc[i, 'WSection'] == 'X':
-            count = 8
-        elif playInGames.loc[i, 'WSection'] == 'Y':
-            count = 16
-        elif playInGames.loc[i, 'WSection'] == 'Z':
-            count = 24
+        count = sectionDict[playInGames.loc[i, 'WSection']]
         tourney.net.append(tourneyGame(evalFn, masterTemp, teamA = playInGames.loc[i, 'WTeamID'], teamB = playInGames.loc[i, 'LTeamID']))
         
         for j in range(len(matchups[0])):
@@ -99,14 +94,7 @@ def tourneySim(year, evalFn, refDF):
             count += 1
 
     for i in range(nonPlayInGames.shape[0]):
-        if nonPlayInGames.loc[i, 'WSection'] == 'W':
-            count = 0
-        elif nonPlayInGames.loc[i, 'WSection'] == 'X':
-            count = 8
-        elif nonPlayInGames.loc[i, 'WSection'] == 'Y':
-            count = 16
-        elif nonPlayInGames.loc[i, 'WSection'] == 'Z':
-            count = 24
+        count = sectionDict[nonPlayInGames.loc[i, 'WSection']]
         firstRoundTestVar = [int(nonPlayInGames.loc[i, 'WNumSeed']), int(nonPlayInGames.loc[i, 'LNumSeed'])]
 
         for j in range(len(matchups[0])):
