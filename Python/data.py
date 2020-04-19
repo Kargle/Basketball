@@ -13,7 +13,7 @@ import time
 #   results: a data frame pulled directly from MNCAATourneyCompactResults.csv
 #output:
 #   seedResults: the created data frame with all information merged and cleaned
-def createSeedResults1985DF(seeds, results):
+def createSeedResultsDF(seeds, results):
     seedsFn = seeds[:] #create copy to avoid modifying original
     resultsFn = results[:]
 
@@ -97,11 +97,11 @@ def createRegSeasonStatsDF(regSeasonResults, columns):
 #   regSeasTotals1985: defined above
 #outputs:
 #   outDF: a data frame that merges these two data frames such that the wins, losses and point totals from the regular season are included for both teams (W/L)
-def createSeedResultRegTotals1985DF(seedResults1985, regSeasTotals1985):
-    srFn = seedResults1985[:] #create copy to avoid modifying original
-    rstFn = regSeasTotals1985[:]
+def createMasterCompactDF(seedResults, regSeasCompactTotals):
+    srFn = seedResults[:] #create copy to avoid modifying original
+    rstFn = regSeasCompactTotals[:]
 
-    rstFn.rename(columns = {'TeamID': 'WTeamID'}, inplace = True) #this procedure is the same as in createSeedResults1985DF function above
+    rstFn.rename(columns = {'TeamID': 'WTeamID'}, inplace = True) #this procedure is the same as in createSeedResultsDF function above
     outDF = pd.merge(srFn, rstFn, on = ['WTeamID', 'Season'])
     outDF.rename(columns = {'G': 'WG','W': 'WWins', 'L': 'WLosses', 'Pts': 'WPts', 'PA': 'WPA'}, inplace = True)
 
@@ -110,6 +110,27 @@ def createSeedResultRegTotals1985DF(seedResults1985, regSeasTotals1985):
     outDF.rename(columns = {'G': 'LG','W': 'LWins', 'L': 'LLosses', 'Pts': 'LPts', 'PA': 'LPA'}, inplace = True)
 
     return outDF
+
+def createMasterDetailedDF(seedResults, regSeasDetailedTotals):
+    srFn = seedResults[:] #create copy to avoid modifying original
+    rstFn = regSeasDetailedTotals[:]
+
+    rstFn.rename(columns = {'TeamID': 'WTeamID'}, inplace = True) #this procedure is the same as in createSeedResultsDF function above
+    outDF = pd.merge(srFn, rstFn, on = ['WTeamID', 'Season'])
+
+    outDF.rename(columns = {'G': 'WG','W': 'WWins', 'L': 'WLosses', 'Pts': 'WPts', 'PA': 'WPA', 'FGM': 'WFGM', 'FGA': 'WFGA', 'FGM3': 'WFGM3',
+       'FGA3': 'WFGA3', 'FTM': 'WFTM', 'FTA': 'WFTA', 'OR': 'WOR', 'DR': 'WDR', 'Ast': 'WAst', 'TO': 'WTO', 'Stl': 'WStl', 'Blk': 'WBlk', 'PF': 'WPF'}, inplace = True)
+
+    rstFn.rename(columns = {'WTeamID': 'LTeamID'}, inplace = True)
+    outDF = pd.merge(outDF, rstFn, on = ['LTeamID', 'Season'])
+
+    outDF.rename(columns = {'G': 'LG','W': 'LWins', 'L': 'LLosses', 'Pts': 'LPts', 'PA': 'LPA', 'FGM': 'LFGM', 'FGA': 'LFGA', 'FGM3': 'LFGM3',
+       'FGA3': 'LFGA3', 'FTM': 'LFTM', 'FTA': 'LFTA', 'OR': 'LOR', 'DR': 'LDR', 'Ast': 'LAst', 'TO': 'LTO', 'Stl': 'LStl', 'Blk': 'LBlk', 'PF': 'LPF'}, inplace = True)
+
+    return outDF
+
+
+#### data imports ####
 
 #### data from provided csv's as data frames ####
 seeds = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneySeeds.csv'))
