@@ -129,6 +129,17 @@ def createMasterDetailedDF(seedResults, regSeasDetailedTotals):
 
     return outDF
 
+def dataAugment(inputDF):
+    tempDF = inputDF[:]
+
+    tempDF['WRecord'] = tempDF['WWins'] / tempDF['WG']
+    tempDF['LRecord'] = tempDF['LWins'] / tempDF['LG']
+
+    tempDF['WPPG'] = tempDF['WPts'] / tempDF['WG']
+
+    return tempDF
+
+
 
 #### data imports ####
 
