@@ -1,7 +1,5 @@
 import numpy as np
 import pandas as pd
-from data import *
-from models import *
 
 #function to generate every possible matchup for the given round of the tournament
 #input:
@@ -87,7 +85,7 @@ def tourneySim(year, evalFn, refDF):
             count = 8
         elif playInGames.loc[i, 'WSection'] == 'Y':
             count = 16
-        elif playInGames.loc[i, 'WSection'] == 'Y':
+        elif playInGames.loc[i, 'WSection'] == 'Z':
             count = 24
         tourney.net.append(tourneyGame(evalFn, masterTemp, teamA = playInGames.loc[i, 'WTeamID'], teamB = playInGames.loc[i, 'LTeamID']))
         
@@ -131,8 +129,8 @@ def tourneySim(year, evalFn, refDF):
     outList = tourney.simulate()
     return outList
 
-def tourneyActual(year, refDF):
-    masterTemp = refDF[:]
+def tourneyActual(year, compactDF):
+    masterTemp = compactDF[:]
 
     matchups = [generateMatchups(1), generateMatchups(2), generateMatchups(3), generateMatchups(4)]
 
@@ -186,3 +184,19 @@ def tourneyActual(year, refDF):
         out.append(playInGames.loc[i, 'WTeamID'])
 
     return out
+
+def tourneySimVsActual(yearsList, evalFn, compactDF, refDF = None):
+    if refDF is None:
+        refDF = compactDF
+
+    simResults = []
+    actualResults = []
+
+    for i in yearsList:
+        simResults = simResults + tourneySim(i, evalFn, refDF)
+        actualResults = actualResults + tourneyActual(i, compactDF)
+
+    simMatchEqual = [x == y for x, y in zip(simResults, actualResults)]
+    accuracy = sum(simMatchEqual) / len(simMatchEqual)
+
+    return accuracy
