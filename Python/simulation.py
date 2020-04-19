@@ -62,16 +62,14 @@ class tourneyNet:
         self.net[62].findWinner()
         return [x.winner for x in self.net]
 
-def tourneySim(year, evalFn, detailed = False):
+def tourneySim(year, evalFn, refDF):
     #note that this implementation relies on matchups and the ref dataframe being global (i.e. accesible by the function without being explicitly passed)
     #should add in ability to manually enter team id's for a given season (what if scenarios)?
-    if detailed == True:
-        masterTemp = master2003[:]
-    elif detailed == False:
-        masterTemp = master1985[:]
+    masterTemp = refDF[:]
+
+    matchups = [generateMatchups(1), generateMatchups(2), generateMatchups(3), generateMatchups(4)]
 
     masterTemp = masterTemp[masterTemp['Season'] == year]
-    #masterTemp.reset_index(inplace = True)
     
     tourney = tourneyNet(evalFn, masterTemp)
 
@@ -133,10 +131,58 @@ def tourneySim(year, evalFn, detailed = False):
     outList = tourney.simulate()
     return outList
 
-#### debugging test cases (delete for final) ####
-global master1985, matchups
-seedResultsCompact = createSeedResults1985DF(seeds, tourneyCompactResults)
-master1985 = createSeedResultRegTotals1985DF(seedResultsCompact, regSeasCompactTotals)
-matchups = [generateMatchups(1), generateMatchups(2), generateMatchups(3), generateMatchups(4)]
+def tourneyActual(year, refDF):
+    masterTemp = refDF[:]
 
-tourneySim(2019, highSeedWins)
+    matchups = [generateMatchups(1), generateMatchups(2), generateMatchups(3), generateMatchups(4)]
+
+    masterTemp = masterTemp[masterTemp['Season'] == year]
+
+    playInGames = masterTemp[(masterTemp['WNumSeed'] != round(masterTemp['WNumSeed'])) & (masterTemp['LNumSeed'] != round(masterTemp['LNumSeed']))]
+    playInGames.sort_values(by = ['WSection', 'WNumSeed'], inplace = True)
+    playInGames.reset_index(inplace = True)
+
+    nonPlayInGames = masterTemp[(masterTemp['WNumSeed'] == round(masterTemp['WNumSeed'])) | (masterTemp['LNumSeed'] == round(masterTemp['LNumSeed']))]
+    nonPlayInGames.reset_index(inplace = True)
+
+    roundIndList = [0, 32, 48, 56]
+    roundSectionMultiplierList = [8, 4, 2, 1]
+    matchupsDivisorList = [1, 4, 16, 64]
+    sectionDict = {'W': 0, 'X': 1, 'Y': 2, 'Z': 3}
+
+    out = [0] * 63
+
+    for i in range(nonPlayInGames.shape[0]):
+        if nonPlayInGames.loc[i, 'DayNum'] == 152 and (nonPlayInGames.loc[i, 'WSection'] == 'W' or nonPlayInGames.loc[i, 'WSection'] == 'X'):
+            index = 60
+        elif nonPlayInGames.loc[i, 'DayNum'] == 152 and (nonPlayInGames.loc[i, 'WSection'] == 'Y' or nonPlayInGames.loc[i, 'WSection'] == 'Z'):
+            index = 61
+        elif nonPlayInGames.loc[i, 'DayNum'] == 154:
+            index = 62
+        else:
+            testVar = [int(nonPlayInGames.loc[i, 'WNumSeed']), int(nonPlayInGames.loc[i, 'LNumSeed'])]
+
+            breakFlag = False
+            for j in range(len(matchups)):
+                for k in range(len(matchups[j])):
+                    if matchups[j][k] == testVar or list(reversed(matchups[j][k])) == testVar:
+                        roundNum = j
+                        gameNum = k
+                        breakFlag = True
+                        break
+                if breakFlag:
+                    break
+            
+            roundInd = roundIndList[roundNum]
+            roundSectionMultiplier = roundSectionMultiplierList[roundNum]
+            matchupsDivisor = matchupsDivisorList[roundNum]
+            sectionNum = sectionDict[nonPlayInGames.loc[i, 'WSection']]
+
+            index = roundInd + (roundSectionMultiplier * sectionNum) + int(gameNum / matchupsDivisor)
+
+        out[index] = nonPlayInGames.loc[i, 'WTeamID']
+    
+    for i in range(playInGames.shape[0]):
+        out.append(playInGames.loc[i, 'WTeamID'])
+
+    return out
