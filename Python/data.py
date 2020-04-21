@@ -137,6 +137,16 @@ def dataAugment(inputDF):
 
     tempDF['WPPG'] = tempDF['WPts'] / tempDF['WG']
 
+    tempDF['pointsDif'] = tempDF['Pts'] - tempDF['PA']
+
+    tempDF['avgPtsDif'] = tempDF['pointsDif'] / tempDF['G']
+
+    tempDF['FTPct'] = tempDF['FTM'] / tempDF['FTA']
+
+    tempDF['ATR'] = tempDF['Ast'] / tempDF['TO']
+
+    #tempDF[confWinPct] = tempDF['?'] I guess we'd need to define what it means for someone to play a "conference" game, i.e. one where TeamAconf = TeamBconf. Then from all confG's, what is the total Wins, or Win percentage?
+
     return tempDF
 
 
