@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import sys
 import time
+import re
 
 #### data functions ####
 
@@ -73,8 +74,8 @@ def createRegSeasonStatsDF(regSeasonResults, columns):
         for game in range(actSeason.shape[0]):
             WInd = actSeasonTotals.index[actSeasonTotals['TeamID'] == actSeason.loc[game, 'WTeamID']].tolist()[0] #find the row index of the winning team in the active game
             LInd = actSeasonTotals.index[actSeasonTotals['TeamID'] == actSeason.loc[game, 'LTeamID']].tolist()[0] #row index of losing team in active game
-            actSeasonTotals.loc[WInd, 'W'] += 1 #increment winning team's win total by 1
-            actSeasonTotals.loc[LInd, 'L'] += 1 #increment losing team's loss total by 1
+            actSeasonTotals.loc[WInd, 'Wins'] += 1 #increment winning team's win total by 1
+            actSeasonTotals.loc[LInd, 'Losses'] += 1 #increment losing team's loss total by 1
             actSeasonTotals.loc[WInd, 'Pts'] += actSeason.loc[game, 'WScore'] #add the winning team's points scored to their season PF total
             actSeasonTotals.loc[WInd, 'PA'] += actSeason.loc[game, 'LScore'] #add the losing team's points scored to the winning team's PA total
             actSeasonTotals.loc[LInd, 'Pts'] += actSeason.loc[game, 'LScore'] #do the same for the losing team
@@ -87,58 +88,98 @@ def createRegSeasonStatsDF(regSeasonResults, columns):
 
         masterSeasonTotals = pd.concat([masterSeasonTotals, actSeasonTotals], axis = 0) #collect all the active seasons together in the master data frame created above
 
-    masterSeasonTotals['G'] = masterSeasonTotals['W'] + masterSeasonTotals['L'] #fill in games played column with sum of win and loss columns
+    masterSeasonTotals['G'] = masterSeasonTotals['Wins'] + masterSeasonTotals['Losses'] #fill in games played column with sum of win and loss columns
+
+    masterSeasonTotals['Record'] = masterSeasonTotals['Wins'] / masterSeasonTotals['G']
+    masterSeasonTotals['PtsPG'] = masterSeasonTotals['Pts'] / masterSeasonTotals['G']
+
+    if ncol > 7:
+        masterSeasonTotals['FGPerc'] = masterSeasonTotals['FGM'] / masterSeasonTotals['FGA']
+        masterSeasonTotals['FG3Perc'] = masterSeasonTotals['FGM3'] / masterSeasonTotals['FGA3']
+        masterSeasonTotals['FTPerc'] = masterSeasonTotals['FTM'] / masterSeasonTotals['FTA']
+        masterSeasonTotals['TR'] = masterSeasonTotals['OR'] + masterSeasonTotals['DR']
+        masterSeasonTotals['RebPG'] = masterSeasonTotals['TR'] / masterSeasonTotals['G']
+        masterSeasonTotals['AstPG'] = masterSeasonTotals['Ast'] / masterSeasonTotals['G']
+        masterSeasonTotals['TOPG'] = masterSeasonTotals['TO'] / masterSeasonTotals['G']
+        masterSeasonTotals['StlPG'] = masterSeasonTotals['Stl'] / masterSeasonTotals['G']
+        masterSeasonTotals['BlkPG'] = masterSeasonTotals['Blk'] / masterSeasonTotals['G']
+        masterSeasonTotals['PFPG'] = masterSeasonTotals['PF'] / masterSeasonTotals['G']
 
     return masterSeasonTotals
 
 #function that merges the seedResults and regSeasTotals data frames created above
 #inputs:
-#   seedResults1985: defined above
-#   regSeasTotals1985: defined above
+#   seedResults: defined above
+#   regSeasTotals: either of the compact or detailed regSeasTotals data frames created above
 #outputs:
-#   outDF: a data frame that merges these two data frames such that the wins, losses and point totals from the regular season are included for both teams (W/L)
-def createMasterCompactDF(seedResults, regSeasCompactTotals):
+#   outDF: a data frame that merges these two data frames such that the columns defined above are incorporated for the winning and losing teams
+def createMasterDF(seedResults, regSeasTotals):
     srFn = seedResults[:] #create copy to avoid modifying original
-    rstFn = regSeasCompactTotals[:]
+    rstFn = regSeasTotals[:]
 
-    rstFn.rename(columns = {'TeamID': 'WTeamID'}, inplace = True) #this procedure is the same as in createSeedResultsDF function above
-    outDF = pd.merge(srFn, rstFn, on = ['WTeamID', 'Season'])
-    outDF.rename(columns = {'G': 'WG','W': 'WWins', 'L': 'WLosses', 'Pts': 'WPts', 'PA': 'WPA'}, inplace = True)
-
-    rstFn.rename(columns = {'WTeamID': 'LTeamID'}, inplace = True)
-    outDF = pd.merge(outDF, rstFn, on = ['LTeamID', 'Season']) 
-    outDF.rename(columns = {'G': 'LG','W': 'LWins', 'L': 'LLosses', 'Pts': 'LPts', 'PA': 'LPA'}, inplace = True)
-
-    return outDF
-
-def createMasterDetailedDF(seedResults, regSeasDetailedTotals):
-    srFn = seedResults[:] #create copy to avoid modifying original
-    rstFn = regSeasDetailedTotals[:]
-
-    rstFn.rename(columns = {'TeamID': 'WTeamID'}, inplace = True) #this procedure is the same as in createSeedResultsDF function above
+    rstFn.rename(columns = {'TeamID': 'WTeamID'}, inplace = True)
     outDF = pd.merge(srFn, rstFn, on = ['WTeamID', 'Season'])
 
-    outDF.rename(columns = {'G': 'WG','W': 'WWins', 'L': 'WLosses', 'Pts': 'WPts', 'PA': 'WPA', 'FGM': 'WFGM', 'FGA': 'WFGA', 'FGM3': 'WFGM3',
-       'FGA3': 'WFGA3', 'FTM': 'WFTM', 'FTA': 'WFTA', 'OR': 'WOR', 'DR': 'WDR', 'Ast': 'WAst', 'TO': 'WTO', 'Stl': 'WStl', 'Blk': 'WBlk', 'PF': 'WPF'}, inplace = True)
+    colNames = list(outDF.columns)
+
+    for i in range(12, len(colNames)):
+        colNames[i] = re.sub(r'^', 'W', colNames[i])
+
+    outDF.columns = colNames
+
+    colInd = len(colNames)
 
     rstFn.rename(columns = {'WTeamID': 'LTeamID'}, inplace = True)
     outDF = pd.merge(outDF, rstFn, on = ['LTeamID', 'Season'])
 
-    outDF.rename(columns = {'G': 'LG','W': 'LWins', 'L': 'LLosses', 'Pts': 'LPts', 'PA': 'LPA', 'FGM': 'LFGM', 'FGA': 'LFGA', 'FGM3': 'LFGM3',
-       'FGA3': 'LFGA3', 'FTM': 'LFTM', 'FTA': 'LFTA', 'OR': 'LOR', 'DR': 'LDR', 'Ast': 'LAst', 'TO': 'LTO', 'Stl': 'LStl', 'Blk': 'LBlk', 'PF': 'LPF'}, inplace = True)
+    colNames = list(outDF.columns)
 
+    for i in range(colInd, len(colNames)):
+        colNames[i] = re.sub(r'^', 'L', colNames[i])
+
+    outDF.columns = colNames
+    
     return outDF
 
-def dataAugment(inputDF):
-    tempDF = inputDF[:]
+def dataAugment(regSeasStatsDF, detailed = True):
+    tempDF = regSeasStatsDF[:]
 
-    tempDF['WRecord'] = tempDF['WWins'] / tempDF['WG']
-    tempDF['LRecord'] = tempDF['LWins'] / tempDF['LG']
-
-    tempDF['WPPG'] = tempDF['WPts'] / tempDF['WG']
+    tempDF['PtsDif'] = tempDF['Pts'] - tempDF['PA']
+    tempDF['PtsPGDif'] = tempDF['PtsDif'] / tempDF['G']
+    
+    if detailed:   
+        tempDF['ATR'] = tempDF['Ast'] / tempDF['TO']
 
     return tempDF
 
+def createDetailedLogRegDF(detailedDF):
+    tempDF = detailedDF[:]
+
+    tempDF.rename(columns = {'WLoc': 'wLoc'}, inplace = True)
+
+    tempDF['gameOutcome'] = pd.Series(data = np.random.randint(low = 0, high = 2, size = tempDF.shape[0]))
+
+    loseDF = tempDF[tempDF['gameOutcome'] == 0]
+    winDF = tempDF[tempDF['gameOutcome'] == 1]
+
+    loseColumns = list(loseDF.columns)
+    winColumns = list(winDF.columns)
+
+    for i in range(len(loseColumns)):
+        loseColumns[i] = re.sub(r'^W', 'Opp', loseColumns[i])
+        loseColumns[i] = re.sub(r'^L', 'Self', loseColumns[i])
+
+        winColumns[i] = re.sub(r'^L', 'Opp', winColumns[i])
+        winColumns[i] = re.sub(r'^W', 'Self', winColumns[i])
+
+    loseDF.columns = loseColumns
+    winDF.columns = winColumns
+
+    loseDF = loseDF[winColumns]
+
+    outDF = pd.concat((winDF, loseDF))
+
+    return outDF
 
 
 #### data imports ####
@@ -150,8 +191,8 @@ regSeasCompactResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataF
 regSeasDetailedResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MRegularSeasonDetailedResults.csv'))
 
 #### other variables that will be needed ####
-columnsCompact = ['Season', 'TeamID', 'G', 'W', 'L', 'Pts', 'PA']
-columnsDetailed = ['Season', 'TeamID', 'G', 'W', 'L', 'Pts', 'PA', 'FGM', 'FGA', 'FGM3', 'FGA3', 'FTM', 'FTA', 'OR', 'DR', 'Ast', 'TO', 'Stl', 'Blk', 'PF']
+columnsCompact = ['Season', 'TeamID', 'G', 'Wins', 'Losses', 'Pts', 'PA']
+columnsDetailed = ['Season', 'TeamID', 'G', 'Wins', 'Losses', 'Pts', 'PA', 'FGM', 'FGA', 'FGM3', 'FGA3', 'FTM', 'FTA', 'OR', 'DR', 'Ast', 'TO', 'Stl', 'Blk', 'PF']
 
 #### generated data ####
 regSeasCompactTotals = pd.read_pickle(os.path.join(sys.path[0], '../GeneratedData/regSeasCompactTotals.pkl'))
