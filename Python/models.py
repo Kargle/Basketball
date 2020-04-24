@@ -1,5 +1,27 @@
 import numpy as np
 import pandas as pd
+
+#### supporting functions ####
+
+def sigmoid(x):
+    return (1 / (1 + np.exp(-x)))
+
+def AIC(y, ySigmoid, k):
+    residuals = y - ySigmoid
+    RSS = (residuals ** 2).sum()
+    AIC = 2 * k - 2 * np.log(RSS)
+    return AIC
+
+def AICcomparison(AIC1, AIC2):
+    if AIC1 <= AIC2:
+        return np.exp((AIC1 - AIC2) / 2)
+    else:
+        return np.exp((AIC2 - AIC2) / 2)
+
+#### logistic models ####
+
+def logisticFull():
+    
         
 #### evaluation functions ####
 
