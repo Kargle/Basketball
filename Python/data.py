@@ -146,9 +146,17 @@ def dataAugment(regSeasStatsDF, detailed = True):
 
     tempDF['PtsDif'] = tempDF['Pts'] - tempDF['PA']
     tempDF['PtsPGDif'] = tempDF['PtsDif'] / tempDF['G']
+    #tempDF['4HistSeed'] = tempDF['Avg seed last 4 years']
+    #tempDF['4HistRcd'] = tempDF['Wins/season last 4 years']
+    #tempDF['25HistSeed'] = tempDF['Avg seed last 25 years']
+
     
     if detailed:   
         tempDF['ATR'] = tempDF['Ast'] / tempDF['TO']
+        #tempDF['Def'] = tempDF[''] / tempDF['']
+        #tempDF['OppFGPerc'] = tempDF['OppPts'] / tempDF['OppG'] <-- tried LFGPct here
+
+
 
     return tempDF
 

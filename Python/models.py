@@ -158,3 +158,161 @@ def betterAstTORatioWins(teamA, teamB, refDF):
         return teamA
     else:
         return teamB
+
+def fewerTurnoversPGWins(teamA, teamB, refDF):
+    teamADF = refDF[refDF['LTeamID'] == teamA]
+    if teamADF.empty:
+        teamADF = refDF[refDF['WTeamID'] == teamA]
+        teamATOPG = float(teamADF.loc[teamADF.index[0], 'WTOPG'])
+    else:
+        teamATOPG = float(teamADF.loc[teamADF.index[0], 'LTOPG'])
+
+    teamBDF = refDF[refDF['LTeamID'] == teamB]
+    if teamBDF.empty:
+        teamBDF = refDF[refDF['WTeamID'] == teamB]
+        teamBTOPG = float(teamBDF.loc[teamBDF.index[0], 'WTOPG'])
+    else:
+        teamBTOPG = float(teamBDF.loc[teamBDF.index[0], 'LTOPG'])
+
+    if teamATOPG == teamBTOPG:
+        rand = np.random.random()
+        if rand < 0.5:
+            return teamA
+        else:
+            return teamB
+    elif teamATOPG > teamBTOPG:
+        return teamA
+    else:
+        return teamB
+
+def moreStealsPGWins(teamA, teamB, refDF):
+    teamADF = refDF[refDF['LTeamID'] == teamA]
+    if teamADF.empty:
+        teamADF = refDF[refDF['WTeamID'] == teamA]
+        teamAStlPG = float(teamADF.loc[teamADF.index[0], 'WStlG'])
+    else:
+        teamAStlPG = float(teamADF.loc[teamADF.index[0], 'LStlPG'])
+
+    teamBDF = refDF[refDF['LTeamID'] == teamB]
+    if teamBDF.empty:
+        teamBDF = refDF[refDF['WTeamID'] == teamB]
+        teamBStlPG = float(teamBDF.loc[teamBDF.index[0], 'WStlPG'])
+    else:
+        teamBStlPG = float(teamBDF.loc[teamBDF.index[0], 'LStlPG'])
+
+    if teamAStlPG == teamBStlPG:
+        rand = np.random.random()
+        if rand < 0.5:
+            return teamA
+        else:
+            return teamB
+    elif teamAStlPG > teamBStlPG:
+        return teamA
+    else:
+        return teamB
+
+# check this one to ensure more/fewer is correct for winner
+def fewerFoulsPGWins(teamA, teamB, refDF):
+    teamADF = refDF[refDF['LTeamID'] == teamA]
+    if teamADF.empty:
+        teamADF = refDF[refDF['WTeamID'] == teamA]
+        teamAPFPG = float(teamADF.loc[teamADF.index[0], 'WPFPG'])
+    else:
+        teamAPFPG = float(teamADF.loc[teamADF.index[0], 'LPFPG'])
+
+    teamBDF = refDF[refDF['LTeamID'] == teamB]
+    if teamBDF.empty:
+        teamBDF = refDF[refDF['WTeamID'] == teamB]
+        teamBPFPG = float(teamBDF.loc[teamBDF.index[0], 'WPFPG'])
+    else:
+        teamBPFPG = float(teamBDF.loc[teamBDF.index[0], 'LPFPG'])
+
+    if teamAPFPG == teamBPFPG:
+        rand = np.random.random()
+        if rand < 0.5:
+            return teamA
+        else:
+            return teamB
+    elif teamAPFPG < teamBPFPG:
+        return teamA
+    else:
+        return teamB
+
+def moreDefReboundsPGWins(teamA, teamB, refDF):
+    teamADF = refDF[refDF['LTeamID'] == teamA]
+    if teamADF.empty:
+        teamADF = refDF[refDF['WTeamID'] == teamA]
+        teamADRPG = float(teamADF.loc[teamADF.index[0], 'WDRPG'])
+    else:
+        teamADRPG = float(teamADF.loc[teamADF.index[0], 'LDRPG'])
+
+    teamBDF = refDF[refDF['LTeamID'] == teamB]
+    if teamBDF.empty:
+        teamBDF = refDF[refDF['WTeamID'] == teamB]
+        teamBDRPG = float(teamBDF.loc[teamBDF.index[0], 'WDRPG'])
+    else:
+        teamBDRPG = float(teamBDF.loc[teamBDF.index[0], 'LDRPG'])
+
+    if teamADRPG == teamBDRPG:
+        rand = np.random.random()
+        if rand < 0.5:
+            return teamA
+        else:
+            return teamB
+    elif teamADRPG > teamBDRPG:
+        return teamA
+    else:
+        return teamB
+
+def moreBlocksPGWins(teamA, teamB, refDF):
+    teamADF = refDF[refDF['LTeamID'] == teamA]
+    if teamADF.empty:
+        teamADF = refDF[refDF['WTeamID'] == teamA]
+        teamABlkPG = float(teamADF.loc[teamADF.index[0], 'WBlkPG'])
+    else:
+        teamABlkPG = float(teamADF.loc[teamADF.index[0], 'LBlkPG'])
+
+    teamBDF = refDF[refDF['LTeamID'] == teamB]
+    if teamBDF.empty:
+        teamBDF = refDF[refDF['WTeamID'] == teamB]
+        teamBBlkPG = float(teamBDF.loc[teamBDF.index[0], 'WBlkPG'])
+    else:
+        teamBBlkPG = float(teamBDF.loc[teamBDF.index[0], 'LBlkPG'])
+
+    if teamABlkPG == teamBBlkPG:
+        rand = np.random.random()
+        if rand < 0.5:
+            return teamA
+        else:
+            return teamB
+    elif teamABlkPG > teamBBlkPG:
+        return teamA
+    else:
+        return teamB
+
+# check this one to ensure greater/less than is correct. trying to see if teams whose opponents have lower FG % win more. 
+def lowerFGPercLoses(teamA, teamB, refDF):
+    teamADF = refDF[refDF['LTeamID'] == teamA]
+    if teamADF.empty:
+        teamADF = refDF[refDF['WTeamID'] == teamA]
+        teamAFGPerc = float(teamADF.loc[teamADF.index[0], 'WFGPerc'])
+    else:
+        teamAFGPerc = float(teamADF.loc[teamADF.index[0], 'LFGPerc'])
+
+    teamBDF = refDF[refDF['LTeamID'] == teamB]
+    if teamBDF.empty:
+        teamBDF = refDF[refDF['WTeamID'] == teamB]
+        teamBFGPerc = float(teamBDF.loc[teamBDF.index[0], 'WFGPerc'])
+    else:
+        teamBBlkPG = float(teamBDF.loc[teamBDF.index[0], 'LFGPerc'])
+
+    if teamAFGPerc == teamBFGPerc:
+        rand = np.random.random()
+        if rand < 0.5:
+            return teamA
+        else:
+            return teamB
+    elif teamAFGPerc < teamBFGPerc:
+        return teamA
+    else:
+        return teamB
