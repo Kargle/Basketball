@@ -149,6 +149,7 @@ def dataAugment(regSeasStatsDF, detailed = True):
     
     if detailed:   
         tempDF['ATR'] = tempDF['Ast'] / tempDF['TO']
+        tempDF['TrueShtPerc'] = tempDF['Pts'] / (2 * (tempDF['FGA']) + (0.44 * tempDF['FTA']))
 
     return tempDF
 

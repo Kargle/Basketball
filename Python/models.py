@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import sklearn.model_selection
+import sklearn.linear_model
 
 #### supporting functions ####
 
@@ -9,19 +11,65 @@ def sigmoid(x):
 def AIC(y, ySigmoid, k):
     residuals = y - ySigmoid
     RSS = (residuals ** 2).sum()
-    AIC = 2 * k - 2 * np.log(RSS)
+    AIC = float(2 * k - 2 * np.log(RSS))
     return AIC
 
 def AICcomparison(AIC1, AIC2):
     if AIC1 <= AIC2:
-        return np.exp((AIC1 - AIC2) / 2)
+        return float(np.exp((AIC1 - AIC2) / 2))
     else:
-        return np.exp((AIC2 - AIC2) / 2)
+        return float(np.exp((AIC2 - AIC2) / 2))
+
+def generateSigVals(yTrain, xTrain, xTest):
+    model = sklearn.linear_model.LogisticRegression()
+    fittedModel = model.fit(xTrain, yTrain)
+
+    rawVals = xTest * fittedModel.coef_
+    sigVals = sigmoid(rawVals)
+
+    return sigVals
 
 #### logistic models ####
 
-def logisticFull():
-    
+def logisticSelect(yVariable, xVariables, logRegDF, testCondition = 0.05):
+    logRegTemp = logRegDF[:]
+    xVariablesTemp = xVariables[:]
+
+    y = logRegTemp[yVariable].to_numpy()
+
+    searching = True
+
+    while searching:
+        x = logRegTemp[xVariablesTemp].to_numpy()
+        fullmodelxTrain, xTest, yTrain, yTest = sklearn.model_selection.train_test_split(x, y, test_size = 0.2, random_state = 1)
+
+        AICVals = []
+        
+        fullModelSigVals = generateSigVals(yTrain, xTrain, xTest)
+        
+
+        for i in xVariablesTemp:
+            partialmodelxTrain, xTest, yTrain, yTest = sklearn.model_selection.train_test_split(x, y, test_size = 0.2, random_state = 1)
+            model = sklearn.linear_model.LogisticRegression()
+            fittedModel = model.fit(xTrain, yTrain)
+
+            rawVals = xTest * fittedModel.coef_
+            sigVals = sigmoid(rawVals)
+
+            AICVals.append(yTest, sigVals, len(xVariablesTemp))
+
+        AICVals.sort()
+
+        compVals = [AICcomparison(AICVals[0], x) for x in AICVals[1:]]
+
+        """
+        MADE A MISTAKE. NEED TO COMPARE REMOVING EACH VARIABLE TO BASE CASE OF ALL VARIABLES.
+        HOLD FULL MODEL AIC AS A VARIABLE, THEN MAKE LIST OF AIC'S WITHHOLDING ONE FEATURE
+        EACH TIME. COMPARE THE FULL MODEL AIC WITH THE MAX(TESTAIC'S), IF THE DIFFERENCE IS
+        SIGNIFICANT DROP IT, OTHERWISE FULL MODEL IS BEST WE CAN DO.
+        """
+        
+    return 
         
 #### evaluation functions ####
 
