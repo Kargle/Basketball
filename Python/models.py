@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import sklearn.model_selection
 import sklearn.linear_model
+from data import createDetailedLogRegDF
 
 #### supporting functions ####
 
@@ -9,29 +10,24 @@ def sigmoid(x):
     return (1 / (1 + np.exp(-x)))
 
 def AIC(y, ySigmoid, k):
+    n = y.shape[0]
     residuals = y - ySigmoid
     RSS = (residuals ** 2).sum()
-    AIC = float(2 * k - 2 * np.log(RSS))
+    AIC = float(2 * k - (2 * n * np.log(RSS / n)))
     return AIC
-
-def AICcomparison(AIC1, AIC2):
-    if AIC1 <= AIC2:
-        return float(np.exp((AIC1 - AIC2) / 2))
-    else:
-        return float(np.exp((AIC2 - AIC2) / 2))
 
 def generateSigVals(yTrain, xTrain, xTest):
     model = sklearn.linear_model.LogisticRegression()
     fittedModel = model.fit(xTrain, yTrain)
 
-    rawVals = xTest * fittedModel.coef_
+    rawVals = np.matmul(xTest, fittedModel.coef_[0])
     sigVals = sigmoid(rawVals)
 
-    return sigVals
+    return [sigVals, fittedModel]
 
 #### logistic models ####
 
-def logisticSelect(yVariable, xVariables, logRegDF, testCondition = 0.05):
+def logisticSelect(yVariable, xVariables, logRegDF, testCondition = 5):
     logRegTemp = logRegDF[:]
     xVariablesTemp = xVariables[:]
 
@@ -40,36 +36,56 @@ def logisticSelect(yVariable, xVariables, logRegDF, testCondition = 0.05):
     searching = True
 
     while searching:
-        x = logRegTemp[xVariablesTemp].to_numpy()
-        fullmodelxTrain, xTest, yTrain, yTest = sklearn.model_selection.train_test_split(x, y, test_size = 0.2, random_state = 1)
-
-        AICVals = []
+        fullDF = logRegTemp[xVariablesTemp]
+        x = fullDF.to_numpy()
+        xTrain, xTest, yTrain, yTest = sklearn.model_selection.train_test_split(x, y, test_size = 0.2)
         
-        fullModelSigVals = generateSigVals(yTrain, xTrain, xTest)
-        
+        output = (generateSigVals(yTrain, xTrain, xTest))
 
+        fullModelAIC = AIC(yTest, output[0], xTest.shape[1])
+
+        AICTestVals = []
+        
         for i in xVariablesTemp:
-            partialmodelxTrain, xTest, yTrain, yTest = sklearn.model_selection.train_test_split(x, y, test_size = 0.2, random_state = 1)
-            model = sklearn.linear_model.LogisticRegression()
-            fittedModel = model.fit(xTrain, yTrain)
+            x = fullDF.drop(columns = i).to_numpy()
+            xTrain, xTest, yTrain, yTest = sklearn.model_selection.train_test_split(x, y, test_size = 0.2)
+            
+            sigVals = (generateSigVals(yTrain, xTrain, xTest))[0]
 
-            rawVals = xTest * fittedModel.coef_
-            sigVals = sigmoid(rawVals)
+            AICTestVals.append(AIC(yTest, sigVals, x.shape[1]))
 
-            AICVals.append(yTest, sigVals, len(xVariablesTemp))
+        bestTestAICInd = AICTestVals.index(min(AICTestVals))
+        bestTestAIC = min(AICTestVals)
 
-        AICVals.sort()
+        if fullModelAIC - bestTestAIC > testCondition and len(xVariablesTemp) > 2:
+            xVariablesTemp.pop(bestTestAICInd)
+        else:
+            searching = False
 
-        compVals = [AICcomparison(AICVals[0], x) for x in AICVals[1:]]
-
-        """
-        MADE A MISTAKE. NEED TO COMPARE REMOVING EACH VARIABLE TO BASE CASE OF ALL VARIABLES.
-        HOLD FULL MODEL AIC AS A VARIABLE, THEN MAKE LIST OF AIC'S WITHHOLDING ONE FEATURE
-        EACH TIME. COMPARE THE FULL MODEL AIC WITH THE MAX(TESTAIC'S), IF THE DIFFERENCE IS
-        SIGNIFICANT DROP IT, OTHERWISE FULL MODEL IS BEST WE CAN DO.
-        """
+    bestModel = [output[1], xVariablesTemp]
         
-    return 
+    return bestModel
+
+def logisticSelectMulti(yVariable, xVariables, logRegDF, trials):
+    xVariableCounts = [0] * len(xVariables)
+
+    for _ in range(trials):
+        keptVariables = logisticSelect(yVariable, xVariables, logRegDF)[1]
+        for i in keptVariables:
+            xVariableCounts[xVariables.index(i)] += 1
+    
+    xVariableFreq = [x / trials for x in xVariableCounts]
+
+    return xVariableFreq
+
+def generateModel(yVariable, xVariables, logRegDF):
+    y = logRegDF[yVariable].to_numpy()
+    x = logRegDF[xVariables].to_numpy()
+
+    model = sklearn.linear_model.LogisticRegression()
+    fittedModel = model.fit(x, y)
+
+    return fittedModel
         
 #### evaluation functions ####
 
@@ -225,6 +241,60 @@ def betterAstTORatioWins(teamA, teamB, refDF):
         else:
             return teamB
     elif teamAATR > teamBATR:
+        return teamA
+    else:
+        return teamB
+
+def logRegPredict(teamA, teamB, refDF):
+    tempDF = refDF[:]
+    columns = ['NumSeed', 'Record', 'PtsPG', 'PtsPGDif', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'BlkPG', 'TOPG', 'ATR']
+    #columns = ['PtsPG', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'TOPG']
+    coefs = np.array([-0.12612732, -0.94548577, -0.00499805,  0.11457662, -0.01874754, 0.04115267, -0.09390971, -0.04500181,  0.01990858,  0.07218248, -0.03864592,  0.07833407])
+    #coefs = np.array([ 0.00643839,  2.12819211,  0.13969725,  0.09989202,  0.07317713, 0.1416132 , -0.29635142])
+
+    tempDF = createDetailedLogRegDF(tempDF)
+
+    teamADF = tempDF[tempDF['selfTeamID'] == teamA]
+    prefixA = 'self'
+    if teamADF.empty:
+        teamADF = tempDF[tempDF['oppTeamID'] == teamA]
+        prefixA = 'opp'   
+    teamADF = teamADF.loc[teamADF.index[0],]
+    teamASeed = teamADF[prefixA + 'NumSeed']
+    
+    teamBDF = tempDF[tempDF['selfTeamID'] == teamB]
+    prefixB = 'self'
+    if teamBDF.empty:
+        teamBDF = tempDF[tempDF['oppTeamID'] == teamB]
+        prefixB = 'opp'
+    teamBDF = teamBDF.loc[teamBDF.index[0],]
+    teamBSeed = teamADF[prefixB + 'NumSeed']
+
+    teamAColumns = [prefixA + x for x in columns]
+    teamBColumns = [prefixB + x for x in columns]
+    difColumns = [x + 'Dif' for x in columns]
+    
+    teamADF = teamADF[teamAColumns]
+    teamBDF = teamBDF[teamBColumns]
+
+    difDF = pd.DataFrame(data = np.zeros(shape = (1, len(difColumns))), columns = difColumns)
+
+    for i in columns:
+        difDF[i + 'Dif'] = teamADF[prefixA + i] - teamBDF[prefixB + i]
+
+    x = difDF.to_numpy()
+
+    raw = np.matmul(x, coefs)
+    sig = float(sigmoid(raw))
+    prediction = round(sig)
+
+    seedDif = teamASeed - teamBSeed
+    #if seedDif >= 10:
+    #    return teamA
+    #elif seedDif <= -10:
+    #    return teamB
+    #else:
+    if int(prediction) == 1:
         return teamA
     else:
         return teamB

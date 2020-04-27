@@ -150,11 +150,14 @@ def dataAugment(regSeasStatsDF, detailed = True):
     if detailed:   
         tempDF['ATR'] = tempDF['Ast'] / tempDF['TO']
         tempDF['TrueShtPerc'] = tempDF['Pts'] / (2 * (tempDF['FGA']) + (0.44 * tempDF['FTA']))
+        tempDF['ORPG'] = tempDF['OR'] / tempDF['G']
+        tempDF['DRPG'] = tempDF['DR'] / tempDF['G']
 
     return tempDF
 
 def createDetailedLogRegDF(detailedDF):
     tempDF = detailedDF[:]
+    tempDF.reset_index(inplace = True)
 
     tempDF.rename(columns = {'WLoc': 'wLoc'}, inplace = True)
 
@@ -167,11 +170,11 @@ def createDetailedLogRegDF(detailedDF):
     winColumns = list(winDF.columns)
 
     for i in range(len(loseColumns)):
-        loseColumns[i] = re.sub(r'^W', 'Opp', loseColumns[i])
-        loseColumns[i] = re.sub(r'^L', 'Self', loseColumns[i])
+        loseColumns[i] = re.sub(r'^W', 'opp', loseColumns[i])
+        loseColumns[i] = re.sub(r'^L', 'self', loseColumns[i])
 
-        winColumns[i] = re.sub(r'^L', 'Opp', winColumns[i])
-        winColumns[i] = re.sub(r'^W', 'Self', winColumns[i])
+        winColumns[i] = re.sub(r'^L', 'opp', winColumns[i])
+        winColumns[i] = re.sub(r'^W', 'self', winColumns[i])
 
     loseDF.columns = loseColumns
     winDF.columns = winColumns
@@ -179,6 +182,26 @@ def createDetailedLogRegDF(detailedDF):
     loseDF = loseDF[winColumns]
 
     outDF = pd.concat((winDF, loseDF))
+
+    outDF['SeedDif'] = outDF['selfNumSeed'] - outDF['oppNumSeed']
+    outDF['RecordDif'] = outDF['selfRecord'] - outDF['oppRecord']
+    outDF['PtsPGDif'] = outDF['selfPtsPG'] - outDF['oppPtsPG']
+    outDF['FGPercDif'] = outDF['selfFGPerc'] - outDF['oppFGPerc']
+    outDF['FG3PercDif'] = outDF['selfFG3Perc'] - outDF['oppFG3Perc']
+    outDF['FTPercDif'] = outDF['selfFTPerc'] - outDF['oppFTPerc']
+    outDF['TRDif'] = outDF['selfTR'] - outDF['oppTR']
+    outDF['RebPGDif'] = outDF['selfRebPG'] - outDF['oppRebPG']
+    outDF['AstPGDif'] = outDF['selfAstPG'] - outDF['oppAstPG']
+    outDF['TOPGDif'] = outDF['selfTOPG'] - outDF['oppTOPG']
+    outDF['StlPGDif'] = outDF['selfStlPG'] - outDF['oppStlPG']
+    outDF['BlkPGDif'] = outDF['selfBlkPG'] - outDF['oppBlkPG']
+    outDF['PFPGDif'] = outDF['selfPFPG'] - outDF['oppPFPG']
+    outDF['PtsDifDif'] = outDF['selfPtsDif'] - outDF['oppPtsDif']
+    outDF['PtsPGDifDif'] = outDF['selfPtsPGDif'] - outDF['oppPtsPGDif']
+    outDF['ATRDif'] = outDF['selfATR'] - outDF['oppATR']
+    outDF['TrueShtPercDif'] = outDF['selfTrueShtPerc'] - outDF['oppTrueShtPerc']
+    outDF['ORPGDif'] = outDF['selfORPG'] - outDF['oppORPG']
+    outDF['DRPGDif'] = outDF['selfDRPG'] - outDF['oppDRPG']
 
     return outDF
 
@@ -195,6 +218,17 @@ regSeasDetailedResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020Data
 columnsCompact = ['Season', 'TeamID', 'G', 'Wins', 'Losses', 'Pts', 'PA']
 columnsDetailed = ['Season', 'TeamID', 'G', 'Wins', 'Losses', 'Pts', 'PA', 'FGM', 'FGA', 'FGM3', 'FGA3', 'FTM', 'FTA', 'OR', 'DR', 'Ast', 'TO', 'Stl', 'Blk', 'PF']
 
-#### generated data ####
+yVariable = 'gameOutcome'
+xVariables = ['SeedDif', 'RecordDif', 'PtsPGDif', 'PtsPGDifDif', 'TrueShtPercDif', 'ORPGDif', 'DRPGDif', 'AstPGDif', 'StlPGDif', 'BlkPGDif', 'TOPGDif', 'ATRDif']
+chosenFeatures = ['PtsPG', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'TOPG']
+
+#### previously generated data ####
 regSeasCompactTotals = pd.read_pickle(os.path.join(sys.path[0], '../GeneratedData/regSeasCompactTotals.pkl'))
 regSeasDetailedTotals = pd.read_pickle(os.path.join(sys.path[0], '../GeneratedData/regSeasDetailedTotals.pkl'))
+
+#### created data ####
+seedResults = createSeedResultsDF(seeds, tourneyCompactResults)
+regSeasDetailedTotals = dataAugment(regSeasDetailedTotals)
+masterCompact = createMasterDF(seedResults, regSeasCompactTotals)
+masterDetailed = createMasterDF(seedResults, regSeasDetailedTotals)
+logRegDF = createDetailedLogRegDF(masterDetailed)
