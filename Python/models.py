@@ -247,9 +247,9 @@ def betterAstTORatioWins(teamA, teamB, refDF):
 
 def logRegPredict(teamA, teamB, refDF):
     tempDF = refDF[:]
-    columns = ['NumSeed', 'Record', 'PtsPG', 'PtsPGDif', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'BlkPG', 'TOPG', 'ATR']
+    columns = ['NumSeed', 'Record', 'PtsPG', 'PtsPGDif', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'BlkPG', 'TOPG', 'ATR', 'PFPG', 'FTA']
     #columns = ['PtsPG', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'TOPG']
-    coefs = np.array([-0.12612732, -0.94548577, -0.00499805,  0.11457662, -0.01874754, 0.04115267, -0.09390971, -0.04500181,  0.01990858,  0.07218248, -0.03864592,  0.07833407])
+    coefs = np.array([-0.12527087010224833, -0.8478265586030146, 0.01907879378890501, 0.115046426987495, 0.05076787040868571, 0.07487047889229337, -0.10432085193602231, -0.08300822076128096, 0.019934487471426208, 0.056491390641182186, 0.0037638206945899877, -0.09985223088243766, -0.050215625731525285, -0.06529454750694046])
     #coefs = np.array([ 0.00643839,  2.12819211,  0.13969725,  0.09989202,  0.07317713, 0.1416132 , -0.29635142])
 
     tempDF = createDetailedLogRegDF(tempDF)

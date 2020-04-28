@@ -152,6 +152,7 @@ def dataAugment(regSeasStatsDF, detailed = True):
         tempDF['TrueShtPerc'] = tempDF['Pts'] / (2 * (tempDF['FGA']) + (0.44 * tempDF['FTA']))
         tempDF['ORPG'] = tempDF['OR'] / tempDF['G']
         tempDF['DRPG'] = tempDF['DR'] / tempDF['G']
+        tempDF['FTAPG'] = tempDF['FTA'] / tempDF['G']
 
     return tempDF
 
@@ -202,7 +203,7 @@ def createDetailedLogRegDF(detailedDF):
     outDF['TrueShtPercDif'] = outDF['selfTrueShtPerc'] - outDF['oppTrueShtPerc']
     outDF['ORPGDif'] = outDF['selfORPG'] - outDF['oppORPG']
     outDF['DRPGDif'] = outDF['selfDRPG'] - outDF['oppDRPG']
-
+    outDF['FTAPGDif'] = outDF['selfFTAPG'] - outDF['oppFTAPG']
     return outDF
 
 
@@ -219,7 +220,7 @@ columnsCompact = ['Season', 'TeamID', 'G', 'Wins', 'Losses', 'Pts', 'PA']
 columnsDetailed = ['Season', 'TeamID', 'G', 'Wins', 'Losses', 'Pts', 'PA', 'FGM', 'FGA', 'FGM3', 'FGA3', 'FTM', 'FTA', 'OR', 'DR', 'Ast', 'TO', 'Stl', 'Blk', 'PF']
 
 yVariable = 'gameOutcome'
-xVariables = ['SeedDif', 'RecordDif', 'PtsPGDif', 'PtsPGDifDif', 'TrueShtPercDif', 'ORPGDif', 'DRPGDif', 'AstPGDif', 'StlPGDif', 'BlkPGDif', 'TOPGDif', 'ATRDif']
+xVariables = ['SeedDif', 'RecordDif', 'PtsPGDif', 'PtsPGDifDif', 'TrueShtPercDif', 'ORPGDif', 'DRPGDif', 'AstPGDif', 'StlPGDif', 'BlkPGDif', 'TOPGDif', 'ATRDif', 'PFPGDif', 'FTAPGDif']
 chosenFeatures = ['PtsPG', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'TOPG']
 
 #### previously generated data ####
