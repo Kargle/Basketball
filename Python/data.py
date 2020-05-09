@@ -93,7 +93,7 @@ def createRegSeasonStatsDF(regSeasonResults, columns):
     masterSeasonTotals['Record'] = masterSeasonTotals['Wins'] / masterSeasonTotals['G']
     masterSeasonTotals['PtsPG'] = masterSeasonTotals['Pts'] / masterSeasonTotals['G']
 
-    if ncol > 7:
+    if ncol > 7: #check to see whether this is detailed or compact stats DF (detailed if > 7)
         masterSeasonTotals['FGPerc'] = masterSeasonTotals['FGM'] / masterSeasonTotals['FGA']
         masterSeasonTotals['FG3Perc'] = masterSeasonTotals['FGM3'] / masterSeasonTotals['FGA3']
         masterSeasonTotals['FTPerc'] = masterSeasonTotals['FTM'] / masterSeasonTotals['FTA']
@@ -107,7 +107,7 @@ def createRegSeasonStatsDF(regSeasonResults, columns):
 
     return masterSeasonTotals
 
-#function that merges the seedResults and regSeasTotals data frames created above
+#function that merges the seedResults and regSeasTotals data frames created above, and adds columns for conference appearances
 #inputs:
 #   seedResults: defined above
 #   regSeasTotals: either of the compact or detailed regSeasTotals data frames created above
@@ -117,18 +117,19 @@ def createMasterDF(seedResults, regSeasTotals):
     srFn = seedResults[:] #create copy to avoid modifying original
     rstFn = regSeasTotals[:]
 
-    rstFn.rename(columns = {'TeamID': 'WTeamID'}, inplace = True)
+    rstFn.rename(columns = {'TeamID': 'WTeamID'}, inplace = True) #match up column names to merge on
     outDF = pd.merge(srFn, rstFn, on = ['WTeamID', 'Season'])
 
-    colNames = list(outDF.columns)
+    colNames = list(outDF.columns) 
 
-    for i in range(12, len(colNames)):
+    for i in range(12, len(colNames)): #loop to add a 'W' to the front of these column names because the values are for the winning team (first 12 columns are general game info)
         colNames[i] = re.sub(r'^', 'W', colNames[i])
 
-    outDF.columns = colNames
+    outDF.columns = colNames #use new column names
 
     colInd = len(colNames)
 
+    #do the same thing as above but for the losing team
     rstFn.rename(columns = {'WTeamID': 'LTeamID'}, inplace = True)
     outDF = pd.merge(outDF, rstFn, on = ['LTeamID', 'Season'])
 
@@ -138,52 +139,108 @@ def createMasterDF(seedResults, regSeasTotals):
         colNames[i] = re.sub(r'^', 'L', colNames[i])
 
     outDF.columns = colNames
+
+    #this part adds the number of tournament game appearances for the winner's and loser's conferences (proxy for strength of schedule)
+    outDF['LConfAppearances'] = pd.Series(data = np.zeros(outDF.shape[0])) #new columns to hold appearances
+    outDF['WConfAppearances'] = pd.Series(data = np.zeros(outDF.shape[0]))
+
+    LConfAppearances = outDF['LConfAbbrev'].value_counts() #get the totals for each conference for winners and losers
+    WConfAppearances = outDF['WConfAbbrev'].value_counts()
+
+    for i in LConfAppearances.index: #this loop combines the winner and loser appearances into one list with all the conferences
+        if i in WConfAppearances.index:
+            LConfAppearances[i] = LConfAppearances[i] + WConfAppearances[i]
+
+    totalConfAppearances = LConfAppearances #rename for clarity
+
+    for i in outDF.index: #loop over the DF and add the appropriate apppearances value based on the winner's and loser's conf appearances
+        outDF.loc[i, 'LConfAppearances'] = totalConfAppearances[outDF.loc[i, 'LConfAbbrev']]
+        outDF.loc[i, 'WConfAppearances'] = totalConfAppearances[outDF.loc[i, 'WConfAbbrev']]
     
     return outDF
 
+#function to add extra stats / features that we want to explore in our analysis; this function is necessary to avoid running the resource intensive reg season stats DF function over and over
+#inputs: 
+#   regSeasStatsDF: the output of the createRegSeasonStatsDF defined above
+#   detailed: boolean, default value True, communicating whether the input DF is detailed or compact
+#output:
+#   tempDF: the input DF with new columns added
 def dataAugment(regSeasStatsDF, detailed = True):
     tempDF = regSeasStatsDF[:]
 
+    #these will be run for both compact and detailed DFs
     tempDF['PtsDif'] = tempDF['Pts'] - tempDF['PA']
     tempDF['PtsPGDif'] = tempDF['PtsDif'] / tempDF['G']
     
+    #these will only be added to detailed DF
     if detailed:   
         tempDF['ATR'] = tempDF['Ast'] / tempDF['TO']
         tempDF['TrueShtPerc'] = tempDF['Pts'] / (2 * (tempDF['FGA']) + (0.44 * tempDF['FTA']))
         tempDF['ORPG'] = tempDF['OR'] / tempDF['G']
         tempDF['DRPG'] = tempDF['DR'] / tempDF['G']
         tempDF['FTAPG'] = tempDF['FTA'] / tempDF['G']
+        
+        #these are all for calculating the def metric defined below
+        avgStlPG = tempDF['StlPG'].mean()
+        avgBlkPG = tempDF['BlkPG'].mean()
+        avgPFPG = tempDF['PFPG'].mean()
+        avgDRPG = tempDF['DRPG'].mean()
 
+        tempDF['StlPGnorm'] = tempDF['StlPG'] / avgStlPG
+        tempDF['BlkPGnorm'] = tempDF['BlkPG'] / avgBlkPG
+        tempDF['PFPGnorm'] = tempDF['PFPG'] / avgPFPG
+        tempDF['DRPGnorm'] = tempDF['DRPG'] / avgDRPG
+
+        #this is a combination of the key defensive team stats, weighted by their ability to predict the outcome of games taken individually
+        tempDF['DefMetric'] = tempDF['StlPGnorm'] * 0.3829596412556054 + tempDF['BlkPGnorm'] * 0.45112107623318387 + tempDF['PFPGnorm'] * 0.42511210762331836 + tempDF['DRPGnorm'] * 0.3874439461883408
+        
     return tempDF
 
+#function to add the conference of each team
+#inputs:
+#   regSeasStatsDF: output of createRegSeasonStatsDF defined above
+#   conferences: raw conferences CSV from competition data
+#outputs:
+#   outDF: the input DF with conferences added
+def addConferences(regSeasStatsDF, conferences):
+    outDF = pd.merge(regSeasStatsDF, conferences, on = ['TeamID', 'Season'])
+    return outDF
+
+#function to make a DF that can be used to run logistic regression tests (primarily combines winner/loser stats into one "difference" stat)
+#input:
+#   detailedDF: final masterDetailed DF from running functions above
+#output:
+#   outDF
 def createDetailedLogRegDF(detailedDF):
     tempDF = detailedDF[:]
     tempDF.reset_index(inplace = True)
 
-    tempDF.rename(columns = {'WLoc': 'wLoc'}, inplace = True)
+    tempDF.rename(columns = {'WLoc': 'wLoc'}, inplace = True) #change to lower case to avoid issues with regex later
 
-    tempDF['gameOutcome'] = pd.Series(data = np.random.randint(low = 0, high = 2, size = tempDF.shape[0]))
+    tempDF['gameOutcome'] = pd.Series(data = np.random.randint(low = 0, high = 2, size = tempDF.shape[0])) #assign each game a random 0/1
 
-    loseDF = tempDF[tempDF['gameOutcome'] == 0]
-    winDF = tempDF[tempDF['gameOutcome'] == 1]
+    loseDF = tempDF[tempDF['gameOutcome'] == 0] #games assigned a 0 will be designated as a "loser" game (from POV of losing team)
+    winDF = tempDF[tempDF['gameOutcome'] == 1] #games assigned a 1 from POV of winning team
 
     loseColumns = list(loseDF.columns)
     winColumns = list(winDF.columns)
 
+    #this loop replaces the "W" and "L" for team stats with "self" and "opp", depending on POV defined above
     for i in range(len(loseColumns)):
-        loseColumns[i] = re.sub(r'^W', 'opp', loseColumns[i])
-        loseColumns[i] = re.sub(r'^L', 'self', loseColumns[i])
+        loseColumns[i] = re.sub(r'^W', 'opp', loseColumns[i]) #for loser, opponent is the winning team
+        loseColumns[i] = re.sub(r'^L', 'self', loseColumns[i]) #self is losing team
 
-        winColumns[i] = re.sub(r'^L', 'opp', winColumns[i])
+        winColumns[i] = re.sub(r'^L', 'opp', winColumns[i]) #vice versa
         winColumns[i] = re.sub(r'^W', 'self', winColumns[i])
 
     loseDF.columns = loseColumns
     winDF.columns = winColumns
 
-    loseDF = loseDF[winColumns]
+    loseDF = loseDF[winColumns] #reorder the loseDF columns to match the winDF columns for concatenation
 
     outDF = pd.concat((winDF, loseDF))
 
+    #everything below is taking differences of self minus opp to obtain a dif score (easier for variable selection)
     outDF['SeedDif'] = outDF['selfNumSeed'] - outDF['oppNumSeed']
     outDF['RecordDif'] = outDF['selfRecord'] - outDF['oppRecord']
     outDF['PtsPGDif'] = outDF['selfPtsPG'] - outDF['oppPtsPG']
@@ -204,6 +261,8 @@ def createDetailedLogRegDF(detailedDF):
     outDF['ORPGDif'] = outDF['selfORPG'] - outDF['oppORPG']
     outDF['DRPGDif'] = outDF['selfDRPG'] - outDF['oppDRPG']
     outDF['FTAPGDif'] = outDF['selfFTAPG'] - outDF['oppFTAPG']
+    outDF['ConfAppDif'] = outDF['selfConfAppearances'] - outDF['oppConfAppearances']
+    outDF['DefMetricDif'] = outDF['selfDefMetric'] - outDF['oppDefMetric']
     return outDF
 
 
@@ -214,13 +273,14 @@ seeds = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFil
 tourneyCompactResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MNCAATourneyCompactResults.csv'))
 regSeasCompactResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MRegularSeasonCompactResults.csv'))
 regSeasDetailedResults = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MRegularSeasonDetailedResults.csv'))
+conferences = pd.read_csv(os.path.join(sys.path[0], '../Data/2020DataFiles/2020DataFiles/2020-Mens-Data/MDataFiles_Stage1/MTeamConferences.csv'))
 
 #### other variables that will be needed ####
 columnsCompact = ['Season', 'TeamID', 'G', 'Wins', 'Losses', 'Pts', 'PA']
 columnsDetailed = ['Season', 'TeamID', 'G', 'Wins', 'Losses', 'Pts', 'PA', 'FGM', 'FGA', 'FGM3', 'FGA3', 'FTM', 'FTA', 'OR', 'DR', 'Ast', 'TO', 'Stl', 'Blk', 'PF']
 
 yVariable = 'gameOutcome'
-xVariables = ['SeedDif', 'RecordDif', 'PtsPGDif', 'PtsPGDifDif', 'TrueShtPercDif', 'ORPGDif', 'DRPGDif', 'AstPGDif', 'StlPGDif', 'BlkPGDif', 'TOPGDif', 'ATRDif', 'PFPGDif', 'FTAPGDif']
+xVariables = ['SeedDif', 'RecordDif', 'PtsPGDif', 'PtsPGDifDif', 'TrueShtPercDif', 'ORPGDif', 'DRPGDif', 'AstPGDif', 'StlPGDif', 'BlkPGDif', 'TOPGDif', 'ATRDif', 'PFPGDif', 'FTAPGDif', 'DefMetricDif', 'ConfAppDif']
 chosenFeatures = ['PtsPG', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'TOPG']
 
 #### previously generated data ####
@@ -230,6 +290,8 @@ regSeasDetailedTotals = pd.read_pickle(os.path.join(sys.path[0], '../GeneratedDa
 #### created data ####
 seedResults = createSeedResultsDF(seeds, tourneyCompactResults)
 regSeasDetailedTotals = dataAugment(regSeasDetailedTotals)
+regSeasCompactTotals = addConferences(regSeasCompactTotals, conferences)
+regSeasDetailedTotals = addConferences(regSeasDetailedTotals, conferences)
 masterCompact = createMasterDF(seedResults, regSeasCompactTotals)
 masterDetailed = createMasterDF(seedResults, regSeasDetailedTotals)
 logRegDF = createDetailedLogRegDF(masterDetailed)
