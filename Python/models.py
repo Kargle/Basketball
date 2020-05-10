@@ -3,6 +3,7 @@ import pandas as pd
 import sklearn.model_selection
 import sklearn.linear_model
 import sklearn.preprocessing
+from data import createDetailedLogRegDF
 
 #### supporting functions ####
 

@@ -281,6 +281,10 @@ columnsDetailed = ['Season', 'TeamID', 'G', 'Wins', 'Losses', 'Pts', 'PA', 'FGM'
 
 yVariable = 'gameOutcome'
 xVariables = ['SeedDif', 'RecordDif', 'PtsPGDif', 'PtsPGDifDif', 'TrueShtPercDif', 'ORPGDif', 'DRPGDif', 'AstPGDif', 'StlPGDif', 'BlkPGDif', 'TOPGDif', 'ATRDif', 'PFPGDif', 'FTAPGDif', 'DefMetricDif', 'ConfAppDif']
+xVariablesDesc = ['Difference in seeds', 'Difference in record', 'Difference in points per game', 'Difference in points per game differential', 'Difference in true shooting percentage',
+                  'Difference in offensive rebounds per game', 'Difference in defensive rebounds per game', 'Difference in assists per game', 'Difference in steals per game',
+                  'Difference in blocks per game', 'Difference in turnovers per game', 'Difference in assist to turnover ratio', 'Difference in personal fouls per game',
+                  'Difference in free throw attempts per game', 'Difference in defensive metric (combination of blk, stl, DR, and PF) per game', 'Difference in conference appearances']
 chosenFeatures = ['PtsPG', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'TOPG']
 
 #### previously generated data ####
