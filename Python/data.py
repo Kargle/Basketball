@@ -285,7 +285,7 @@ xVariablesDesc = ['Difference in seeds', 'Difference in record', 'Difference in 
                   'Difference in offensive rebounds per game', 'Difference in defensive rebounds per game', 'Difference in assists per game', 'Difference in steals per game',
                   'Difference in blocks per game', 'Difference in turnovers per game', 'Difference in assist to turnover ratio', 'Difference in personal fouls per game',
                   'Difference in free throw attempts per game', 'Difference in defensive metric (combination of blk, stl, DR, and PF) per game', 'Difference in conference appearances']
-chosenFeatures = ['PtsPG', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'TOPG']
+chosenFeatures = ['NumSeedDif', 'RecordDif', 'PtsPGDif', 'PtsPGDifDif', 'TrueShtPercDif', 'ORPGDif', 'DRPGDif', 'AstPGDif', 'StlPGDif', 'BlkPGDif', 'TOPGDif', 'ATRDif']
 
 #### previously generated data ####
 regSeasCompactTotals = pd.read_pickle(os.path.join(sys.path[0], '../GeneratedData/regSeasCompactTotals.pkl'))

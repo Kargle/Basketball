@@ -300,9 +300,12 @@ def betterAstTORatioWins(teamA, teamB, refDF):
 #outputs the team that is predicted to win based on logistic regression model using all log reg values
 def logRegPredictFull(teamA, teamB, refDF):
     tempDF = refDF[:]
-    columns = ['NumSeed', 'Record', 'PtsPG', 'PtsPGDif', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'BlkPG', 'TOPG', 'ATR', 'PFPG', 'FTA'] #columns of full model
+    columns = ['NumSeed', 'Record', 'PtsPG', 'PtsPGDif', 'TrueShtPerc', 'ORPG', 'DRPG', 'AstPG', 'StlPG', 'BlkPG', 'TOPG', 'ATR', 'PFPG', 'FTAPG', 'DefMetric', 'ConfAppearances'] #columns of full model
     #these coefficients were found by running log reg with above variables
-    coefs = np.array([-0.12527087010224833, -0.8478265586030146, 0.01907879378890501, 0.115046426987495, 0.05076787040868571, 0.07487047889229337, -0.10432085193602231, -0.08300822076128096, 0.019934487471426208, 0.056491390641182186, 0.0037638206945899877, -0.09985223088243766, -0.050215625731525285, -0.06529454750694046])
+    coefs = np.array([-0.10652044, -0.46803654,  0.02073799,  0.11885845,  0.04021554,
+        0.06865805, -0.09927938, -0.08682422,  0.01886909,  0.04548005,
+        0.00183267, -0.16278378, -0.04832846, -0.06462267,  0.00453879,
+        0.00111273])
 
     tempDF = createDetailedLogRegDF(tempDF)
 
